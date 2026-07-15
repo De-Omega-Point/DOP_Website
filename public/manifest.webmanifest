@@ -1,0 +1,17 @@
+{
+  "name": "De-Omega-Point",
+  "short_name": "De-Omega",
+  "description": "Human-value-centric intelligence for the next frontier.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#050b07",
+  "theme_color": "#00ff8c",
+  "icons": [
+    {
+      "src": "./assets/de-omega-logo.svg",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
