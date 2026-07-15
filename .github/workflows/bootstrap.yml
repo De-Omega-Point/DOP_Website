@@ -35,8 +35,13 @@ jobs:
             .bootstrap/chunk-06-08 \
             | base64 --decode > /tmp/DOP_Website-source.tar.gz
           tar -xzf /tmp/DOP_Website-source.tar.gz -C .
+
+          # The workflow token may update normal repository content, but GitHub
+          # blocks it from creating or modifying workflow files without the
+          # separate workflows permission. Those files are installed afterwards
+          # through the authorised GitHub connector.
+          rm -rf .github/workflows
           rm -rf .bootstrap
-          rm -f .github/workflows/bootstrap.yml
 
       - name: Commit full application
         shell: bash
