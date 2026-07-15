@@ -47,3 +47,5 @@ jobs:
           fi
           git commit -m "Deploy complete De-Omega-Point website application"
           git push origin main
+
+# Bootstrap trigger refresh
