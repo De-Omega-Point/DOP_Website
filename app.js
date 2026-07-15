@@ -1,0 +1,13 @@
+const nav=document.getElementById('siteNav');
+const menuButton=document.getElementById('menuButton');
+const mobilePanel=document.getElementById('mobilePanel');
+document.getElementById('year').textContent=new Date().getFullYear();
+window.addEventListener('scroll',()=>nav.classList.toggle('compact',window.scrollY>20),{passive:true});
+menuButton.addEventListener('click',()=>{const open=mobilePanel.classList.toggle('open');menuButton.setAttribute('aria-expanded',String(open));menuButton.textContent=open?'✕':'☰';});
+mobilePanel.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{mobilePanel.classList.remove('open');menuButton.setAttribute('aria-expanded','false');menuButton.textContent='☰';}));
+const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('visible');observer.unobserve(entry.target);}}),{threshold:.12});
+document.querySelectorAll('.reveal:not(.visible)').forEach(el=>observer.observe(el));
+const sections=[...document.querySelectorAll('section[id],div[id]')];
+const links=[...document.querySelectorAll('.nav-links a')];
+const activate=()=>{let current='home';for(const s of sections){if(window.scrollY>=s.offsetTop-180)current=s.id;}links.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+current));};
+window.addEventListener('scroll',activate,{passive:true});activate();
