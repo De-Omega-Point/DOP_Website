@@ -1,58 +1,170 @@
-/* LFNA 0.1: deliberately deterministic; no model or network dependency. */
+/* LFNA 0.2 | On-device rules engine and locally saved user workflows. */
 "use strict";
-const HEADINGS = ["CLIENT NAME","CLIENT SUPPORT","BEHAVIOUR","MEDICAL","HEALTH","COMMUNITY PARTICIPATION","COMMUNICATION","ACTIVE SUPPORT","GOAL","OBSERVATION"];
-const RULES = [
-  ["MEDICAL",/\b(medication|medications|medicine|prescribed|glucose|blood sugar|insulin|blood pressure|temperature|administered)\b/i],
-  ["GOAL",/\b(goal|target|objective|progress towards)\b/i],
-  ["OBSERVATION",/\b(observation|observed|noted unusual)\b/i],
-  ["BEHAVIOUR",/\b(refused|declined|distress|aggress|agitat|self.injur|anxious)\b/i],
-  ["COMMUNITY PARTICIPATION",/\b(community|outing|shopping|went to work|attended work|visited|excursion)\b/i],
-  ["COMMUNICATION",/\b(conversation|conversed|discussed|communicated|spoke|talked|requested|asked)\b/i],
-  ["ACTIVE SUPPORT",/\b(support worker|\bSW\b|assisted|prompted|encouraged|prepared|supported)\b/i],
-  ["HEALTH",/\b(pain|appetite|hydration|sleep|slept|nap|wellbeing|well.being|fatigue)\b/i],
-  ["CLIENT SUPPORT",/\b(shower|shave|breakfast|brekkie|lunch|dinner|evening tea|teeth|pads|clothing|bedtime|hygiene)\b/i]
-];
-const byId=id=>document.getElementById(id);
-function cleanLine(line){return line.replace(/^\s*(?:[-*•]\s*)?/,"").trim();}
-function formatICare(input){
- const groups=Object.fromEntries(HEADINGS.map(h=>[h,[]]));
- const unmatched=[];let selected=null;
- const lines=input.split(/\r?\n/).map(cleanLine).filter(Boolean);
- for (const line of lines){
-  const name=line.match(/^CLIENT NAME\s*[:\-]\s*(.+)$/i);
-  if(name){groups["CLIENT NAME"].push(name[1].trim());selected=null;continue;}
-  const explicit=line.match(/^(CLIENT SUPPORT|BEHAVIOUR|MEDICAL|HEALTH|COMMUNITY PARTICIPATION|COMMUNICATION|ACTIVE SUPPORT|GOAL|OBSERVATION)\s*[:\-]\s*(.*)$/i);
-  if(explicit){selected=explicit[1].toUpperCase();if(explicit[2].trim())groups[selected].push(explicit[2].trim());continue;}
-  const heading=HEADINGS.find(h=>h===line.toUpperCase());
-  if(heading){selected=heading;continue;}
-  if(selected){groups[selected].push(line);continue;}
-  const match=RULES.find(([,pattern])=>pattern.test(line));
-  if(match){groups[match[0]].push(line);}else{unmatched.push(line);}
- }
- const output=HEADINGS.map(h=>h+"\n"+(groups[h].length?groups[h].map(x=>"- "+x).join("\n"):"")).join("\n\n");
- const review=(groups["CLIENT NAME"].length===0?"Client name not provided.\n":"")+
- (unmatched.length?"Needs review: "+unmatched.length+" line(s) not confidently classified:\n"+unmatched.map(s=>"• "+s).join("\n"):"");
- return {output,review:review||"Check every heading and verify against the original notes before copying."};
+const el = id => document.getElementById(id);
+const KEY = "lfnaWorkflowsV1";
+const MAX_WORKFLOWS = 30;
+let workflows = [], selectedId = null;
+
+function getStored() {
+  if (typeof browser !== "undefined" && browser.storage?.local) return browser.storage.local.get(KEY);
+  return new Promise((resolve,reject)=>chrome.storage.local.get(KEY, data => {
+    const e=chrome.runtime.lastError; e ? reject(new Error(e.message)) : resolve(data);
+  }));
 }
-function scanPrivacy(input){
- const patterns=[["Possible email",/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi],
- ["Possible Australian phone number",/(?<!\d)(?:\+61\s?|0)[2-478](?:[\s-]?\d){8}(?!\d)/g],
- ["Possible date of birth / date",/\b(?:\d{1,2}[\/.-]){2}\d{2,4}\b/g]];
- const found=[];
- for(const [label,rx] of patterns){const matches=[...input.matchAll(rx)];if(matches.length)found.push(label+": "+matches.length);}
- return {output:found.length?found.join("\n"):"No predefined patterns detected.",review:"This is a limited pattern check, not a comprehensive privacy assessment. Names, identifiers, addresses and context may still be sensitive."};
+function saveStored(items) {
+  const data = {[KEY]:items};
+  if (typeof browser !== "undefined" && browser.storage?.local) return browser.storage.local.set(data);
+  return new Promise((resolve,reject)=>chrome.storage.local.set(data,()=>{
+    const e=chrome.runtime.lastError; e ? reject(new Error(e.message)) : resolve();
+  }));
 }
-byId("run").addEventListener("click",()=>{
- const input=byId("input").value.trim();
- if(!input){byId("review").textContent="Enter text to process.";return;}
- const result=byId("task").value==="icare"?formatICare(input):scanPrivacy(input);
- byId("output").value=result.output;byId("review").textContent=result.review;
+function message(text) {el("review").textContent=text;}
+function normalise(s) {
+  return s.replace(/\r\n?/g,"\n").split("\n").map(line=>line.trim().replace(/[ \t]+/g," "));
+}
+function clean(s) {
+  return normalise(s).join("\n").replace(/\n{3,}/g,"\n\n").trim();
+}
+function format(s, style) {
+  const lines = normalise(s).map(line=>line.replace(/^(?:-\s*\[[ xX]\]|[-*•]|\d+[.)]|\[[ xX]\])\s*/,"").trim()).filter(Boolean);
+  return lines.map((line,i)=>{
+    if(style==="numbered")return (i+1)+". "+line;
+    if(style==="checklist")return "- [ ] "+line;
+    if(style==="bullets")return "- "+line;
+    return line;
+  }).join("\n");
+}
+function checkPrivacy(s) {
+  const checks = [
+    ["Possible email addresses",/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi],
+    ["Possible Australian phone numbers",/(?<!\d)(?:\+61\s?|0)[2-478](?:[\s-]?\d){8}(?!\d)/g],
+    ["Possible dates",/\b(?:\d{1,2}[\/.-]){2}\d{2,4}\b/g]
+  ];
+  const flags = checks.map(([label,re])=>{const found=s.match(re);return found?label+": "+found.length:null;}).filter(Boolean);
+  return {output: flags.join("\n") || "No predefined patterns detected.",
+    review: "This checks only a few text patterns. It cannot reliably identify all names, addresses, IDs or other private information."};
+}
+function parseReplacements(s) {
+  return s.split(/\r?\n/).map(line=>{
+    const p=line.indexOf("=>");
+    if(p<1)return null;
+    const from=line.slice(0,p).trim(),to=line.slice(p+2).trim();
+    return from ? {from,to} : null;
+  }).filter(Boolean).slice(0,20);
+}
+function processText(s, task) {
+  if(task==="clean")return {output:clean(s),review:"Verify that the cleaned text preserves your meaning."};
+  if(task==="checklist")return {output:format(s,"checklist"),review:"Review the checklist for missing or duplicated items."};
+  if(task==="privacy")return checkPrivacy(s);
+  if(!task.startsWith("custom:"))return {output:"",review:"Unknown workflow."};
+  const w=workflows.find(item=>item.id===task.slice(7));
+  if(!w)return {output:"",review:"Workflow unavailable."};
+  let value=clean(s);
+  for(const rule of w.replacements){
+    if(rule.from) value=value.split(rule.from).join(rule.to);
+  }
+  return {output:(w.title ? w.title+"\n\n" : "")+format(value,w.format),
+    review:"Output generated using saved formatting and literal replacements. Review any changed words before use."};
+}
+function renderOptions() {
+  const group=el("custom-options");
+  group.replaceChildren();
+  for(const w of workflows){
+    const opt=document.createElement("option");
+    opt.value="custom:"+w.id;
+    opt.textContent=w.name;
+    group.appendChild(opt);
+  }
+}
+function resetStudio() {
+  selectedId=null;
+  el("workflow-name").value="";
+  el("workflow-format").value="bullets";
+  el("workflow-title").value="";
+  el("workflow-replacements").value="";
+  el("delete-workflow").disabled=true;
+}
+function selectStudio(id) {
+  const w=workflows.find(item=>item.id===id);
+  if(!w)return;
+  selectedId=id;
+  el("workflow-name").value=w.name;
+  el("workflow-format").value=w.format;
+  el("workflow-title").value=w.title;
+  el("workflow-replacements").value=w.replacements.map(r=>r.from+" => "+r.to).join("\n");
+  el("delete-workflow").disabled=false;
+}
+el("task").addEventListener("change",()=>{
+  el("output").value="";message("");
+  const task=el("task").value;
+  if(task.startsWith("custom:"))selectStudio(task.slice(7));
 });
-byId("clear").addEventListener("click",()=>{byId("input").value="";byId("output").value="";byId("review").textContent="";});
-byId("copy").addEventListener("click",async()=>{
- const value=byId("output").value;
- if(!value)return;
- try{await navigator.clipboard.writeText(value);byId("review").textContent+="\nCopied to clipboard.";}
- catch{byId("review").textContent+="\nCopy was blocked by this browser; select and copy the output manually.";}
+el("studio-toggle").addEventListener("click",()=>{
+  const box=el("studio");
+  box.hidden=!box.hidden;
+  if(!box.hidden && el("task").value.startsWith("custom:"))selectStudio(el("task").value.slice(7));
 });
-byId("task").addEventListener("change",()=>{byId("output").value="";byId("review").textContent="";});
+el("new-workflow").addEventListener("click",()=>{resetStudio();message("New workflow ready to configure.");});
+el("save-workflow").addEventListener("click",async()=>{
+  const name=el("workflow-name").value.trim();
+  if(!name){message("Enter a name for this workflow.");return;}
+  if(!selectedId && workflows.length>=MAX_WORKFLOWS){message("You have reached the 30-workflow limit for this beta.");return;}
+  const recipe={
+    id:selectedId || crypto.randomUUID(),
+    name,
+    format:el("workflow-format").value,
+    title:el("workflow-title").value.trim(),
+    replacements:parseReplacements(el("workflow-replacements").value)
+  };
+  const next=workflows.filter(w=>w.id!==recipe.id).concat(recipe);
+  try{
+    await saveStored(next);
+    workflows=next;selectedId=recipe.id;renderOptions();
+    el("task").value="custom:"+recipe.id;
+    el("delete-workflow").disabled=false;
+    message("Saved locally. Click Process locally to test your workflow.");
+  }catch(error){message("Saving failed: "+error.message);}
+});
+el("delete-workflow").addEventListener("click",async()=>{
+  if(!selectedId)return;
+  const next=workflows.filter(w=>w.id!==selectedId);
+  try{
+    await saveStored(next);
+    workflows=next;resetStudio();renderOptions();
+    el("task").value="clean";
+    message("Workflow deleted from this browser.");
+  }catch(error){message("Deletion failed: "+error.message);}
+});
+el("run").addEventListener("click",()=>{
+  const raw=el("input").value.trim();
+  if(!raw){message("Enter text to process.");return;}
+  const result=processText(raw,el("task").value);
+  el("output").value=result.output;
+  message(result.review);
+});
+el("clear").addEventListener("click",()=>{
+  el("input").value="";el("output").value="";message("");
+});
+el("copy").addEventListener("click",async()=>{
+  if(!el("output").value)return;
+  try{
+    await navigator.clipboard.writeText(el("output").value);
+    message("Copied to clipboard. Review your destination before pasting.");
+  }catch(error){message("Clipboard copy blocked. Select the output and copy manually.");}
+});
+(async()=>{
+  try{
+    const data=await getStored();
+    if(Array.isArray(data[KEY])){
+      workflows=data[KEY].filter(w=>
+        w && typeof w.id==="string" && typeof w.name==="string" &&
+        typeof w.title==="string" && Array.isArray(w.replacements) &&
+        ["plain","bullets","numbered","checklist"].includes(w.format)
+      ).slice(0,MAX_WORKFLOWS).map(w=>({
+        id:w.id,name:w.name,title:w.title,format:w.format,
+        replacements:w.replacements.filter(r=>r&&typeof r.from==="string"&&r.from.length&&typeof r.to==="string").slice(0,20)
+      }));
+    }
+    renderOptions();
+  }catch(error){message("Saved workflows could not be loaded: "+error.message);}
+})();
