@@ -1,29 +1,110 @@
 <!doctype html>
-<html lang="en-AU"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LFNA Studio</title><link rel="stylesheet" href="popup.css"></head>
-<body><main>
-<header><div class="eyebrow">DE-OMEGA-POINT · LOCAL-FIRST</div><h1>Local First <span>Narrow AI</span></h1><p>Your words. Your device. Your control.</p></header>
-<div class="status"><span class="dot"></span>On-device rules engine · Beta 0.2</div>
-<label for="task">Choose a workflow</label><select id="task">
-<option value="clean">Clean text</option><option value="checklist">Make a checklist</option><option value="privacy">Check possible private information</option>
-<optgroup label="My Workflows" id="custom-options"></optgroup></select>
-<button type="button" id="studio-toggle" class="secondary full">Customise workflows</button>
-<section id="studio" hidden aria-label="LFNA Studio">
-<h2>LFNA Studio</h2><p class="hint">Create your own formatting workflows. Settings stay on this device.</p>
-<button type="button" id="new-workflow" class="secondary">New workflow</button>
-<label for="workflow-name">Workflow name</label><input id="workflow-name" maxlength="60" placeholder="My writing workflow">
-<label for="workflow-format">Output format</label><select id="workflow-format">
-<option value="bullets">Dot points</option><option value="numbered">Numbered</option><option value="checklist">Checklist</option><option value="plain">Plain lines</option></select>
-<label for="workflow-title">Optional title</label><input id="workflow-title" maxlength="100" placeholder="My notes">
-<label for="workflow-replacements">Optional word replacements</label>
-<textarea id="workflow-replacements" rows="3" placeholder="pls => please&#10;thx => thanks"></textarea>
-<p class="hint">One literal case-sensitive replacement per line: old =&gt; new.</p>
-<div class="actions"><button type="button" id="save-workflow">Save workflow</button><button type="button" id="delete-workflow" class="secondary" disabled>Delete selected</button></div>
-<p class="hint">Custom AI prompts become executable only after we integrate an on-device model. This beta uses the formatting settings above.</p>
-</section>
-<label for="input">Input text</label><textarea id="input" rows="8" maxlength="15000" placeholder="Type or paste text..."></textarea>
-<div class="actions"><button id="run" type="button">Process locally</button><button id="clear" type="button" class="secondary">Clear</button></div>
-<label for="output">Reviewable output</label><textarea id="output" rows="10" readonly placeholder="Your result will appear here."></textarea>
-<div class="actions"><button id="copy" type="button" class="secondary">Copy reviewed output</button></div>
-<section id="review" aria-live="polite"></section>
-<p class="foot">No site permissions, background scans, model downloads or network calls. Workflow settings save locally; pasted text is not stored automatically. Beta 0.2 is rules-based, not a trained model.</p>
-</main><script src="popup.js" defer></script></body></html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Local First Narrow AI</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<main>
+  <header class="brand">
+    <div class="eyebrow">DE-OMEGA-POINT · PRIVATE BY DESIGN</div>
+    <h1>Local First <span>Narrow AI</span></h1>
+    <p>Your words. Your device. Your control.</p>
+  </header>
+  <nav class="tabs" role="tablist" aria-label="LFNA navigation">
+    <button id="tab-home" type="button" role="tab" class="tab active" aria-selected="true" aria-controls="panel-home" data-tab="home">Home</button>
+    <button id="tab-studio" type="button" role="tab" class="tab" aria-selected="false" aria-controls="panel-studio" data-tab="studio" tabindex="-1">LFNA Studio</button>
+    <button id="tab-settings" type="button" role="tab" class="tab" aria-selected="false" aria-controls="panel-settings" data-tab="settings" tabindex="-1">Settings</button>
+  </nav>
+  <section id="panel-home" role="tabpanel" aria-labelledby="tab-home">
+    <div class="panel-intro"><h2>Work locally</h2><p class="hint">Choose a task, then review the result before copying.</p></div>
+    <label for="task">Your workflow</label>
+    <select id="task">
+      <option value="clean">Clean text</option>
+      <option value="checklist">Make a checklist</option>
+      <option value="privacy">Check possible private information</option>
+      <optgroup label="My Workflows" id="custom-options"></optgroup>
+    </select>
+    <button type="button" id="open-studio" class="text-link">+ Create a workflow in LFNA Studio</button>
+    <label for="input">Input text</label>
+    <textarea id="input" rows="7" maxlength="15000" placeholder="Type or paste your text here..."></textarea>
+    <div class="actions">
+      <button type="button" id="run">Process locally</button>
+      <button type="button" id="clear" class="secondary">Clear</button>
+    </div>
+    <label for="output">Reviewable output</label>
+    <textarea id="output" rows="8" readonly placeholder="Your result will appear here."></textarea>
+    <div class="actions"><button id="copy" type="button" class="secondary">Copy reviewed output</button></div>
+    <p id="home-status" class="status-msg" role="status" aria-live="polite"></p>
+  </section>
+  <section id="panel-studio" role="tabpanel" aria-labelledby="tab-studio" hidden>
+    <div class="panel-intro">
+      <div class="row-between"><h2>LFNA Studio</h2><span class="pill">On-device</span></div>
+      <p class="hint">Build a reusable text workflow in four steps. No coding or account required.</p>
+    </div>
+    <div class="steps" aria-hidden="true"><span>1 · Name</span><span>2 · Format</span><span>3 · Personalise</span><span>4 · Test</span></div>
+    <label for="studio-workflows">My saved workflows</label>
+    <select id="studio-workflows"><option value="">+ New workflow</option></select>
+    <div class="actions tight">
+      <button type="button" id="new-workflow" class="secondary">+ New</button>
+      <button type="button" id="use-workflow" class="secondary" disabled>Use on Home</button>
+    </div>
+    <div class="step">
+      <div class="step-title"><span class="step-count">1</span><h3>Name your workflow</h3></div>
+      <label for="workflow-name">Workflow name</label>
+      <input id="workflow-name" maxlength="60" placeholder="e.g. My study checklist">
+    </div>
+    <div class="step">
+      <div class="step-title"><span class="step-count">2</span><h3>Choose the result</h3></div>
+      <label for="workflow-format">Output style</label>
+      <select id="workflow-format">
+        <option value="bullets">Dot points</option>
+        <option value="numbered">Numbered steps</option>
+        <option value="checklist">Checklist</option>
+        <option value="plain">Plain lines</option>
+      </select>
+      <label for="workflow-title">Optional title</label>
+      <input id="workflow-title" maxlength="100" placeholder="e.g. Key takeaways">
+    </div>
+    <div class="step">
+      <div class="step-title"><span class="step-count">3</span><h3>Personalise it</h3></div>
+      <label for="workflow-replacements">Optional word replacements</label>
+      <textarea id="workflow-replacements" rows="3" maxlength="1000" placeholder="pls => please&#10;thx => thanks"></textarea>
+      <p class="hint">One case-sensitive replacement per line: old =&gt; new. Always review changes to meaning.</p>
+    </div>
+    <div class="step">
+      <div class="step-title"><span class="step-count">4</span><h3>Try before saving</h3></div>
+      <label for="studio-sample">Sample text</label>
+      <textarea id="studio-sample" rows="3" maxlength="3000" placeholder="First thing&#10;Second thing"></textarea>
+      <button type="button" id="preview-workflow" class="secondary full">Preview workflow</button>
+      <label for="studio-preview">Preview output</label>
+      <textarea id="studio-preview" rows="4" readonly placeholder="Preview appears here..."></textarea>
+    </div>
+    <div class="actions">
+      <button type="button" id="save-workflow">Save locally</button>
+      <button type="button" id="delete-workflow" class="secondary" disabled>Delete</button>
+    </div>
+    <p id="studio-status" class="status-msg" role="status" aria-live="polite"></p>
+    <p class="hint bottom-note">This beta executes formatting rules only. Free-form AI prompting is planned for the later on-device model release.</p>
+  </section>
+  <section id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+    <div class="panel-intro"><h2>Settings & privacy</h2><p class="hint">Simple controls. No hidden background work.</p></div>
+    <div class="setting-row"><strong>Processing</strong><span>On device</span></div>
+    <div class="setting-row"><strong>Browser page access</strong><span>None</span></div>
+    <div class="setting-row"><strong>AI model</strong><span>Not installed</span></div>
+    <div class="setting-row"><strong>Saved recipes</strong><span id="saved-count">0 of 30</span></div>
+    <p class="hint">Workflow settings are stored in extension-local storage. Text is not saved automatically. Manual clipboard copying puts the selected output in your system clipboard.</p>
+    <div class="danger-zone">
+      <h3>Delete local workflow settings</h3>
+      <label class="check-row"><input type="checkbox" id="confirm-clear"> I understand this permanently deletes my saved workflows on this device.</label>
+      <button type="button" id="clear-workflows" class="secondary" disabled>Delete all workflows</button>
+    </div>
+    <p id="settings-status" class="status-msg" role="status" aria-live="polite"></p>
+    <p class="foot">LFNA Beta 0.3 · Rules-based prototype · No browser-store release</p>
+  </section>
+</main>
+<script src="popup.js" defer></script>
+</body>
+</html>
