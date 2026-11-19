@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Local First Narrow AI",
+  "short_name": "LFNA",
+  "version": "0.3.0",
+  "description": "Private browser productivity tools with an integrated on-device workflow studio.",
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_title": "LFNA",
+    "default_popup": "popup.html"
+  }
+}
