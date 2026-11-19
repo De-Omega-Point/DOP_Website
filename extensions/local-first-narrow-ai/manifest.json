@@ -2,8 +2,11 @@
   "manifest_version": 3,
   "name": "Local First Narrow AI",
   "short_name": "LFNA",
-  "version": "0.1.0",
-  "description": "Human-reviewed, offline-first narrow text workflows. No background scanning or cloud processing.",
+  "version": "0.2.0",
+  "description": "Offline-first everyday text tools with user-created local workflows. No background scans or cloud processing.",
+  "permissions": [
+    "storage"
+  ],
   "action": {
     "default_title": "LFNA",
     "default_popup": "popup.html"
