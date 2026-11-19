@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LFNA | De-Omega-Point</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<main>
+<header><div class="eyebrow">DE-OMEGA-POINT · LOCAL-FIRST</div><h1>Local First <span>Narrow AI</span></h1><p>Human agency is prime.</p></header>
+<div class="status"><span class="dot"></span>Offline-by-design rules engine · Beta 0.1</div>
+<label for="task">Specialist workflow</label>
+<select id="task"><option value="icare">iCare: structure shift notes</option><option value="privacy">Privacy: identify possible personal data</option></select>
+<label for="input">Your text</label>
+<textarea id="input" rows="9" placeholder="Paste fictional test notes here. Do not use real client data in this beta."></textarea>
+<div class="actions"><button id="run" type="button">Process locally</button><button id="clear" type="button" class="secondary">Clear</button></div>
+<label for="output">Reviewable output</label>
+<textarea id="output" rows="14" readonly placeholder="Nothing processed yet."></textarea>
+<div class="actions"><button id="copy" type="button" class="secondary">Copy reviewed output</button></div>
+<section id="review" aria-live="polite"></section>
+<p class="foot">No network requests, background scans, page-reading permissions, model downloads or storage. Human approval required. This beta uses transparent rules, not a trained model.</p>
+</main>
+<script src="popup.js" defer></script>
+</body>
+</html>
